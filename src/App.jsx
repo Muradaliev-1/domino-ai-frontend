@@ -57,7 +57,7 @@ function Half({ n, size }) {
 
 // Masa taşı
 function BoardTile({ tile, sz, isNew }) {
-  const [a,b]    = tile;
+  const [a,b]   = tile;
   const isDouble = a === b;
   const [show, setShow] = useState(!isNew);
 
@@ -66,17 +66,17 @@ function BoardTile({ tile, sz, isNew }) {
   }, []);
 
   const style = {
-    display:      "flex",
-    alignItems:   "center",
-    background:   `linear-gradient(160deg, ${C.tile}, ${C.tileBot})`,
-    border:       `1.5px solid ${C.tileEdge}`,
+    display:       "flex",
+    alignItems:    "center",
+    background:    `linear-gradient(160deg, ${C.tile}, ${C.tileBot})`,
+    border:        `1.5px solid ${C.tileEdge}`,
     borderRadius:  Math.max(3, sz*0.12),
-    boxShadow:    "0 3px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6)",
-    flexShrink:   0,
-    overflow:     "hidden",
-    transition:   isNew ? "opacity 0.3s, transform 0.3s cubic-bezier(0.34,1.5,0.64,1)" : "none",
-    opacity:      show ? 1 : 0,
-    transform:    show ? "scale(1)" : "scale(0.4)",
+    boxShadow:     "0 3px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6)",
+    flexShrink:    0,
+    overflow:      "hidden",
+    transition:    isNew ? "opacity 0.3s, transform 0.3s cubic-bezier(0.34,1.5,0.64,1)" : "none",
+    opacity:       show ? 1 : 0,
+    transform:     show ? "scale(1)" : "scale(0.4)",
   };
 
   const div = {
@@ -102,7 +102,7 @@ function BoardTile({ tile, sz, isNew }) {
   );
 }
 
-// El taşı — gerçek zamanlı sürükleme
+// El taşı — gerçek zamanlı sürükleme ve süzülme animasyonu
 function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
   const [a,b] = tile;
   const sz    = 56; // el taşları büyük
@@ -114,7 +114,6 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
     !m.is_pass && ((m.tile[0]===a&&m.tile[1]===b)||(m.tile[0]===b&&m.tile[1]===a))
   );
 
-  // Pointer events — en akıcı yöntem
   const onPointerDown = (e) => {
     if (!isPlayable) return;
     e.preventDefault();
@@ -123,7 +122,6 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
     const rect  = ref.current.getBoundingClientRect();
     drag.current = { active:false, ox: e.clientX - rect.left, oy: e.clientY - rect.top };
 
-    // Ghost elementi oluştur
     const g = document.createElement("div");
     g.style.cssText = `
       position:fixed; pointer-events:none; z-index:9999;
@@ -133,12 +131,10 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
       box-shadow:0 12px 40px rgba(0,0,0,0.7),0 0 0 3px rgba(74,222,128,0.3);
       transform:none;
       will-change:left,top;
-      transition:opacity 0.15s;
       width:${sz*2+8}px;
       left:${e.clientX - drag.current.ox - 4}px;
       top:${e.clientY - drag.current.oy - 4}px;
     `;
-    // SVG'leri klonla
     const svgs = ref.current.querySelectorAll("svg");
     const divider = document.createElement("div");
     divider.style.cssText = `width:${sz*2-4}px;height:2px;background:${C.tileEdge};margin:2px 0`;
@@ -167,7 +163,6 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
     if (drag.current.active) {
       lastPos.current = { x: e.clientX, y: e.clientY };
 
-      // rAF ile GPU-accelerated pozisyon güncelle
       if (rafId.current) cancelAnimationFrame(rafId.current);
       rafId.current = requestAnimationFrame(() => {
         if (!ghost.current) return;
@@ -188,21 +183,33 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
 
   const onPointerUp = (e) => {
     if (!ghost.current) return;
-
-    // Ghost'u temizle
-    ghost.current.style.opacity = "0";
-    setTimeout(() => { ghost.current?.remove(); ghost.current = null; }, 150);
     ref.current.style.opacity = "";
 
-    if (!drag.current.active) return;
+    if (!drag.current.active) {
+      ghost.current.remove();
+      ghost.current = null;
+      return;
+    }
     drag.current.active = false;
 
-    // Masaya düştü mü?
     const board = boardRef?.current;
-    if (!board) return;
+    if (!board) {
+      ghost.current.remove();
+      ghost.current = null;
+      return;
+    }
+
     const r = board.getBoundingClientRect();
     const inBoard = e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
-    if (!inBoard) return;
+    
+    if (!inBoard) {
+      // Masaya bırakılmadıysa hızlıca eski yerine küçülerek yok ol
+      ghost.current.style.transition = "all 0.2s ease-out";
+      ghost.current.style.transform = "scale(0.3)";
+      ghost.current.style.opacity = "0";
+      setTimeout(() => { ghost.current?.remove(); ghost.current = null; }, 200);
+      return;
+    }
 
     const toLeft = e.clientX < r.left + r.width / 2;
     const move = legal.find(m =>
@@ -214,8 +221,51 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
       ((m.tile[0]===a&&m.tile[1]===b)||(m.tile[0]===b&&m.tile[1]===a))
     );
 
-    if (move) sendMove(move);
-    else addMsg("Bu taş bu tarafa oynanamaz.", C.red);
+    if (!move) {
+      addMsg("Bu taş bu tarafa oynanamaz.", C.red);
+      ghost.current.remove();
+      ghost.current = null;
+      return;
+    }
+
+    // Hedef nokta: Masanın tam orta noktası veya bırakılan taraftaki konum
+    const targetX = r.left + r.width / 2;
+    const targetY = r.top + r.height / 2;
+    const startX = e.clientX - drag.current.ox - 4;
+    const startY = e.clientY - drag.current.oy - 4;
+
+    const startTime = performance.now();
+    const duration = 280; // milisaniye cinsinden süzülme süresi
+
+    const animateFlight = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Cubic ease-out (hızlı başlayıp hedefe yaklaşırken yumuşakça yavaşlayan formül)
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      const currentX = startX + (targetX - startX) * ease;
+      const currentY = startY + (targetY - startY) * ease;
+      const currentScale = 1 - (0.4 * ease); // Hafif küçülerek merkeze oturma hissi
+
+      if (ghost.current) {
+        ghost.current.style.left = `${currentX}px`;
+        ghost.current.style.top = `${currentY}px`;
+        ghost.current.style.transform = `scale(${currentScale})`;
+        ghost.current.style.opacity = `${1 - (progress * 0.2)}`;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animateFlight);
+      } else {
+        // Uçuş bitti, ghost'u temizle ve sunucuya hamleyi gönder
+        ghost.current?.remove();
+        ghost.current = null;
+        sendMove(move);
+      }
+    };
+
+    requestAnimationFrame(animateFlight);
   };
 
   return (
@@ -225,10 +275,10 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       style={{
-        display:      "flex",
+        display:       "flex",
         flexDirection:"column",
         alignItems:   "center",
-        background:   isPlayable
+        background:    isPlayable
           ? `linear-gradient(160deg, #fffbf0, ${C.tileBot})`
           : "linear-gradient(160deg, #2a2520, #1a1510)",
         border:       `1.5px solid ${isPlayable ? C.tileEdge : "#3a3530"}`,
@@ -267,9 +317,9 @@ function ClosedTile({ horiz=true }) {
       background:  "linear-gradient(135deg, #2d1f10, #1a1008)",
       border:      "1px solid #4a3020",
       borderRadius: 3,
-      margin:       2,
+      margin:      2,
       boxShadow:   "0 2px 6px rgba(0,0,0,0.5)",
-      flexShrink:   0,
+      flexShrink:  0,
     }} />
   );
 }
@@ -279,7 +329,7 @@ function PlayerPanel({ name, handSize, isAgent, isTurn, horiz=true, missing }) {
   const color = isAgent ? C.agent : C.human;
   return (
     <div style={{
-      display:      "flex",
+      display:       "flex",
       flexDirection: horiz ? "column" : "row",
       alignItems:   "center",
       gap:           6,
@@ -320,14 +370,11 @@ function BoardArea({ board, boardRef }) {
   useEffect(() => {
     const update = () => {
       if (!containerRef.current) return;
-      const w     = containerRef.current.clientWidth - 16;
-      const h     = containerRef.current.clientHeight - 40;
+      const w    = containerRef.current.clientWidth - 16;
+      const h    = containerRef.current.clientHeight - 40;
       const count = board.length;
       if (count === 0) { setTileSize(22); return; }
-      // Genişliğe göre hesapla: normal taş sz*2 geniş, çift sz geniş
-      // Ortalama ~1.6x genişlik
       const byWidth  = Math.floor(w / (count * 1.65));
-      // Yüksekliğe göre: taş yüksekliği sz*2
       const byHeight = Math.floor(h / 2.2);
       const sz = Math.max(12, Math.min(24, Math.min(byWidth, byHeight)));
       setTileSize(sz);
@@ -347,10 +394,10 @@ function BoardArea({ board, boardRef }) {
           alignItems:     "center",
           justifyContent: "center",
           flexWrap:       "nowrap",
-          gap:             1,
+          gap:            1,
           padding:        "6px",
           width:          "100%",
-          minHeight:       tileSize*2 + 16,
+          minHeight:      tileSize*2 + 16,
         }}
       >
         {board.length === 0
@@ -368,15 +415,15 @@ function BoardArea({ board, boardRef }) {
 
 // ── ANA UYGULAMA ─────────────────────────────────────────
 export default function App() {
-  const [phase,     setPhase]   = useState("lobby");
-  const [name,      setName]    = useState("");
-  const [roomId,    setRoomId]  = useState("");
-  const [slot,      setSlot]    = useState(null);
-  const [game,      setGame]    = useState(null);
-  const [messages,  setMsgs]    = useState([]);
-  const [agentThink,setThink]   = useState(false);
-  const [result,    setResult]  = useState(null);
-  const [players,   setPlayers] = useState({});
+  const [phase,    setPhase]   = useState("lobby");
+  const [name,     setName]    = useState("");
+  const [roomId,   setRoomId]  = useState("");
+  const [slot,     setSlot]    = useState(null);
+  const [game,     setGame]    = useState(null);
+  const [messages, setMsgs]    = useState([]);
+  const [agentThink,setThink]  = useState(false);
+  const [result,   setResult]  = useState(null);
+  const [players,  setPlayers] = useState({});
   const ws       = useRef(null);
   const boardRef = useRef(null);
 
@@ -387,9 +434,9 @@ export default function App() {
     if (!name.trim()) return;
     const s = new WebSocket(`${WS_URL}/${encodeURIComponent(name.trim())}`);
     ws.current = s;
-    s.onopen    = () => addMsg("Bağlandı", C.green);
-    s.onerror   = () => addMsg("Bağlantı hatası!", C.red);
-    s.onclose   = () => addMsg("Bağlantı kesildi.", C.muted);
+    s.onopen   = () => addMsg("Bağlandı", C.green);
+    s.onerror  = () => addMsg("Bağlantı hatası!", C.red);
+    s.onclose  = () => addMsg("Bağlantı kesildi.", C.muted);
     s.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if      (msg.type==="joined")         { setRoomId(msg.room_id); setSlot(msg.slot); setPhase("waiting"); addMsg(msg.message, C.yellow); }
@@ -397,8 +444,8 @@ export default function App() {
       else if (msg.type==="game_started")   { setPhase("playing"); if(msg.players) setPlayers(msg.players); }
       else if (msg.type==="game_state")     { setGame(msg); setThink(false); if(msg.is_game_over) setPhase("gameover"); }
       else if (msg.type==="agent_thinking") { setThink(true); }
-      else if (msg.type==="agent_move")     { setThink(false); const m=msg.move; addMsg(`🤖 P${msg.player+1}: ${m.is_pass?"PAS":`(${m.tile[0]}|${m.tile[1]})`}`, C.agent); }
-      else if (msg.type==="human_move")     { addMsg(`👤 ${msg.name}: ${msg.move.is_pass?"PAS":`(${msg.move.tile[0]}|${msg.move.tile[1]})`}`, C.human); }
+      else if (msg.type==="agent_move")     { setThink(false); const m=msg.move; addMsg(`🤖 P${msg.player+1}: ${m.is_pass?"PAS":`(${m.tile[0]}\vert{}${m.tile[1]})`}`, C.agent); }
+      else if (msg.type==="human_move")     { addMsg(`👤 ${msg.name}: ${msg.move.is_pass?"PAS":`(${msg.move.tile[0]}\vert{}${msg.move.tile[1]})`}`, C.human); }
       else if (msg.type==="game_over")      { setResult(msg); setPhase("gameover"); }
       else if (msg.type==="error")          { addMsg(`⚠ ${msg.message}`, C.red); }
       else if (msg.type==="player_left")    { addMsg(msg.message, C.red); }
@@ -422,7 +469,6 @@ export default function App() {
 
   const st = { fontFamily:"'Segoe UI',system-ui,sans-serif", color:C.text };
 
-  // Tam ekran için body margin sıfırla
   useEffect(() => {
     document.body.style.margin  = "0";
     document.body.style.padding = "0";
@@ -479,7 +525,7 @@ export default function App() {
 
   // ── Oyun
   if (phase==="playing" || phase==="gameover") {
-    const g        = game;
+    const g      = game;
     const myHand   = g?.your_hand || [];
     const legal    = g?.legal_moves || [];
     const isMyTurn = g?.is_your_turn && !agentThink;
@@ -542,10 +588,8 @@ export default function App() {
             border:`5px solid ${C.wood}`,
             boxShadow:"0 0 0 7px #2a1408, 0 20px 60px rgba(0,0,0,0.8), inset 0 2px 30px rgba(0,0,0,0.3)",
             overflow:"hidden", position:"relative", minHeight:0,
-            display:"flex", flexDirection:"column",
           }}>
 
-            {/* Masa iç parlaklık */}
             <div style={{ position:"absolute", inset:0, pointerEvents:"none",
               background:"radial-gradient(ellipse at 50% 20%, rgba(255,255,255,0.04) 0%, transparent 60%)" }} />
 
