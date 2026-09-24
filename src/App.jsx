@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "wss://domino-ai-backend.onrender.com/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
 
 const C = {
   bg:       "#0f1a0f",
@@ -131,7 +131,8 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
       background:linear-gradient(160deg,#fffbf0,${C.tileBot});
       border:2px solid ${C.green}; border-radius:8px; padding:4px;
       box-shadow:0 12px 40px rgba(0,0,0,0.7),0 0 0 3px rgba(74,222,128,0.3);
-      transform:rotate(-2deg);
+      transform:none;
+      will-change:left,top;
       transition:opacity 0.15s;
       width:${sz*2+8}px;
       left:${e.clientX - drag.current.ox - 4}px;
@@ -148,6 +149,9 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
     ghost.current = g;
   };
 
+  const rafId = useRef(null);
+  const lastPos = useRef({ x:0, y:0 });
+
   const onPointerMove = (e) => {
     if (!ghost.current) return;
     e.preventDefault();
@@ -161,19 +165,24 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
     }
 
     if (drag.current.active) {
-      ghost.current.style.left = `${e.clientX - drag.current.ox - 4}px`;
-      ghost.current.style.top  = `${e.clientY - drag.current.oy - 4}px`;
+      lastPos.current = { x: e.clientX, y: e.clientY };
 
-      // Masa üzerinde mi?
-      const board = boardRef?.current;
-      if (board) {
-        const r = board.getBoundingClientRect();
-        const over = e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
-        ghost.current.style.borderColor = over ? C.green : C.tileEdge;
-        ghost.current.style.boxShadow   = over
-          ? `0 12px 40px rgba(0,0,0,0.7),0 0 0 3px rgba(74,222,128,0.4)`
-          : `0 12px 40px rgba(0,0,0,0.7)`;
-      }
+      // rAF ile GPU-accelerated pozisyon güncelle
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+      rafId.current = requestAnimationFrame(() => {
+        if (!ghost.current) return;
+        const { x, y } = lastPos.current;
+        ghost.current.style.left = `${x - drag.current.ox - 4}px`;
+        ghost.current.style.top  = `${y - drag.current.oy - 4}px`;
+
+        const board = boardRef?.current;
+        if (board) {
+          const r    = board.getBoundingClientRect();
+          const over = x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
+          ghost.current.style.borderColor = over ? C.green : C.tileEdge;
+          ghost.current.style.outline     = over ? `2px solid rgba(74,222,128,0.4)` : "none";
+        }
+      });
     }
   };
 
