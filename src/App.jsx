@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "wss://domino-ai-backend.onrender.com/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
 
 const C = {
   bg:       "#0f1a0f",
@@ -131,7 +131,7 @@ function HandTile({ tile, disabled, legal, sendMove, addMsg, boardRef }) {
       background:linear-gradient(160deg,#fffbf0,${C.tileBot});
       border:2px solid ${C.green}; border-radius:8px; padding:4px;
       box-shadow:0 12px 40px rgba(0,0,0,0.7),0 0 0 3px rgba(74,222,128,0.3);
-      transform:scale(1.1) rotate(-3deg);
+      transform:rotate(-2deg);
       transition:opacity 0.15s;
       width:${sz*2+8}px;
       left:${e.clientX - drag.current.ox - 4}px;
@@ -306,19 +306,22 @@ function PlayerPanel({ name, handSize, isAgent, isTurn, horiz=true, missing }) {
 // Masa — tam genişlik, taşlar sığmazsa küçülür
 function BoardArea({ board, boardRef }) {
   const containerRef = useRef(null);
-  const [tileSize, setTileSize] = useState(24);
+  const [tileSize, setTileSize] = useState(22);
 
   useEffect(() => {
     const update = () => {
       if (!containerRef.current) return;
-      const w     = containerRef.current.clientWidth - 32;
+      const w     = containerRef.current.clientWidth - 16;
+      const h     = containerRef.current.clientHeight - 40;
       const count = board.length;
-      if (count === 0) { setTileSize(24); return; }
-      // Her normal taş: sz*2 + 4px, her çift taş: sz + 4px
-      // Basitçe: ortalama taş genişliği sz*1.6
-      const available = w / count;
-      const sz = Math.max(14, Math.min(26, available / 1.7));
-      setTileSize(Math.round(sz));
+      if (count === 0) { setTileSize(22); return; }
+      // Genişliğe göre hesapla: normal taş sz*2 geniş, çift sz geniş
+      // Ortalama ~1.6x genişlik
+      const byWidth  = Math.floor(w / (count * 1.65));
+      // Yüksekliğe göre: taş yüksekliği sz*2
+      const byHeight = Math.floor(h / 2.2);
+      const sz = Math.max(12, Math.min(24, Math.min(byWidth, byHeight)));
+      setTileSize(sz);
     };
     update();
     const obs = new ResizeObserver(update);
@@ -327,7 +330,7 @@ function BoardArea({ board, boardRef }) {
   }, [board.length]);
 
   return (
-    <div ref={containerRef} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}>
+    <div ref={containerRef} style={{ width:"100%", flex:1, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
       <div
         ref={boardRef}
         style={{
@@ -336,10 +339,9 @@ function BoardArea({ board, boardRef }) {
           justifyContent: "center",
           flexWrap:       "nowrap",
           gap:             1,
-          padding:        "8px",
+          padding:        "6px",
           width:          "100%",
-          minHeight:       tileSize*2 + 20,
-          borderRadius:    12,
+          minHeight:       tileSize*2 + 16,
         }}
       >
         {board.length === 0
@@ -411,6 +413,15 @@ export default function App() {
 
   const st = { fontFamily:"'Segoe UI',system-ui,sans-serif", color:C.text };
 
+  // Tam ekran için body margin sıfırla
+  useEffect(() => {
+    document.body.style.margin  = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow= "hidden";
+    document.documentElement.style.height = "100%";
+    document.body.style.height  = "100%";
+  }, []);
+
   // ── Lobi
   if (phase==="lobby") return (
     <div style={{ ...st, minHeight:"100vh",
@@ -468,7 +479,7 @@ export default function App() {
     const mustPass = legal.length===1 && legal[0].is_pass;
 
     return (
-      <div style={{ ...st, height:"100vh", overflow:"hidden",
+      <div style={{ ...st, height:"100dvh", width:"100vw", overflow:"hidden",
         background:"radial-gradient(ellipse at 50% 30%, #1a3a1a 0%, #080f08 100%)",
         display:"flex", flexDirection:"column" }}>
 
@@ -522,6 +533,7 @@ export default function App() {
             border:`5px solid ${C.wood}`,
             boxShadow:"0 0 0 7px #2a1408, 0 20px 60px rgba(0,0,0,0.8), inset 0 2px 30px rgba(0,0,0,0.3)",
             overflow:"hidden", position:"relative", minHeight:0,
+            display:"flex", flexDirection:"column",
           }}>
 
             {/* Masa iç parlaklık */}
