@@ -23,11 +23,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.ws       = data.ws;
-    this.myName   = data.name;
-    this.slot     = data.slot;
-    this.roomId   = data.roomId;
-    this.players  = data.players || {};
+    this.ws         = data.ws;
+    this.myName     = data.name;
+    this.slot       = data.slot;
+    this.roomId     = data.roomId;
+    this.players    = data.players || {};
+    this.firstState = data.firstState || null;
 
     // Oyun durumu
     this.gameState    = null;
@@ -95,8 +96,16 @@ export class GameScene extends Phaser.Scene {
     // WebSocket mesajları
     this.ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
+      console.log("GameScene msg:", msg.type);
       this.handleMessage(msg);
     };
+
+    // İlk state varsa hemen işle
+    if (this.firstState) {
+      this.time.delayedCall(100, () => {
+        this.handleMessage(this.firstState);
+      });
+    }
 
     // Resize
     this.scale.on("resize", (gameSize) => {

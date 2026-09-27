@@ -10,7 +10,7 @@ export class WaitScene extends Phaser.Scene {
     this.name   = data.name;
     this.roomId = data.roomId;
     this.slot   = data.slot;
-    this.wsUrl  = data.wsUrl;
+    this.players = {};
   }
 
   create() {
@@ -24,47 +24,52 @@ export class WaitScene extends Phaser.Scene {
     this.add.text(W / 2, H * 0.35, "⏳", { fontSize: "64px" }).setOrigin(0.5);
 
     this.add.text(W / 2, H * 0.46, "Oda Kodu:", {
-      fontSize: "16px", color: "#7a8070", fontFamily: "system-ui",
+      fontSize: "16px", fontFamily: "system-ui", color: "#7a8070",
     }).setOrigin(0.5);
 
     this.add.text(W / 2, H * 0.52, this.roomId.toUpperCase(), {
-      fontSize: "32px", color: "#d4a843", fontFamily: "monospace", fontStyle: "bold",
-      letterSpacing: 8,
+      fontSize: "32px", fontFamily: "monospace", color: "#d4a843", fontStyle: "bold",
     }).setOrigin(0.5);
 
     this.add.text(W / 2, H * 0.60, "Arkadaşını bekliyor...", {
-      fontSize: "16px", color: "#7a8070", fontFamily: "system-ui",
+      fontSize: "16px", fontFamily: "system-ui", color: "#7a8070",
     }).setOrigin(0.5);
 
     this.add.text(W / 2, H * 0.65, "Bu kodu arkadaşınla paylaş", {
-      fontSize: "14px", color: "#4ade80", fontFamily: "system-ui",
+      fontSize: "14px", fontFamily: "system-ui", color: "#4ade80",
     }).setOrigin(0.5);
 
-    // WebSocket mesajlarını dinle
+    // Tüm mesaj tiplerini yakala
     this.ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
+      console.log("WaitScene msg:", msg.type, msg);
 
-      if (msg.type === "room_full" || msg.type === "game_started") {
-        if (msg.type === "game_started") {
-          this.scene.start("GameScene", {
-            ws:       this.ws,
-            name:     this.name,
-            slot:     this.slot,
-            roomId:   this.roomId,
-            players:  msg.players || {},
-          });
-        }
+      if (msg.type === "room_full") {
+        if (msg.players) this.players = msg.players;
+      }
+
+      if (msg.type === "game_started") {
+        if (msg.players) this.players = msg.players;
+        this.scene.start("GameScene", {
+          ws:      this.ws,
+          name:    this.name,
+          slot:    this.slot,
+          roomId:  this.roomId,
+          players: this.players,
+        });
+      }
+
+      // game_state gelirse de geç (bazen game_started'dan önce gelebilir)
+      if (msg.type === "game_state") {
+        this.scene.start("GameScene", {
+          ws:         this.ws,
+          name:       this.name,
+          slot:       this.slot,
+          roomId:     this.roomId,
+          players:    this.players,
+          firstState: msg,
+        });
       }
     };
-
-    // Nokta animasyonu
-    let dots = 0;
-    this.time.addEvent({
-      delay: 500,
-      loop:  true,
-      callback: () => {
-        dots = (dots + 1) % 4;
-      },
-    });
   }
 }
