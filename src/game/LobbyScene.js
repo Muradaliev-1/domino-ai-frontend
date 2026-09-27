@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || "wss://domino-ai-backend.onrender.com/ws";
 
 export class LobbyScene extends Phaser.Scene {
   constructor() {
