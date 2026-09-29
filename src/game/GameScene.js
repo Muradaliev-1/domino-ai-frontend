@@ -414,11 +414,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── Noktalar (pips) ───────────────────────────────────
-  addPips(container, n, cx, cy, areaW, areaH, sz) {
+  addPips(container, n, cx, cy, areaW, areaH, sz, playable=true) {
     const positions = PIP_POS[n] || [];
-    // Nokta yarıçapı — alan boyutuna göre ölçeklenir
     const pipR = Math.max(1.5, Math.min(sz * 0.18, areaW * 0.09));
     const pad  = pipR * 1.5;
+
+    // Oynanabilir → koyu, Oynanamaz → orta koyu (görünsün)
+    const dotColor    = playable ? 0x1a0f05 : 0x3a2a10;
+    const shadowAlpha = playable ? 0.25     : 0.15;
+    const shineAlpha  = playable ? 0.35     : 0.2;
 
     positions.forEach(([px, py]) => {
       const x = cx - areaW/2 + pad + px * (areaW - pad*2);
@@ -426,13 +430,13 @@ export class GameScene extends Phaser.Scene {
 
       const g = this.add.graphics();
       // Gölge
-      g.fillStyle(0x000000, 0.25);
+      g.fillStyle(0x000000, shadowAlpha);
       g.fillCircle(x+0.8, y+0.8, pipR);
       // Nokta
-      g.fillStyle(0x1a0f05, 1);
+      g.fillStyle(dotColor, 1);
       g.fillCircle(x, y, pipR);
       // İç parlaklık
-      g.fillStyle(0x4a2a10, 0.35);
+      g.fillStyle(0x6a4a20, shineAlpha);
       g.fillCircle(x - pipR*0.25, y - pipR*0.25, pipR*0.35);
 
       container.add(g);
@@ -503,10 +507,10 @@ export class GameScene extends Phaser.Scene {
 
     // Nokta boyutu el için biraz daha büyük
     const pipSz = tw / 2.2;
-    this.addPips(c, a, -tw/4, 0, tw/2, th, pipSz);
-    this.addPips(c, b,  tw/4, 0, tw/2, th, pipSz);
+    this.addPips(c, a, -tw/4, 0, tw/2, th, pipSz, playable);
+    this.addPips(c, b,  tw/4, 0, tw/2, th, pipSz, playable);
 
-    c.setAlpha(playable ? 1 : 0.32);
+    c.setAlpha(playable ? 1 : 0.65);  // daha görünür ama soluk
     c.setDepth(1);
 
     if (playable) {
@@ -606,7 +610,7 @@ export class GameScene extends Phaser.Scene {
     if (playable) {
       g.fillStyle(hovered ? 0xfffbf0 : 0xf5efd8, 1);
     } else {
-      g.fillStyle(0x252018, 1);
+      g.fillStyle(0xb8a888, 1);  // soluk krem — görünür ama donuk
     }
     g.fillRoundedRect(-tw/2, -th/2, tw, th, 7);
 
@@ -614,18 +618,16 @@ export class GameScene extends Phaser.Scene {
     if (hovered) {
       g.lineStyle(2, 0x4ade80, 1);
     } else {
-      g.lineStyle(1.5, playable ? 0xbba878 : 0x3a3020, 1);
+      g.lineStyle(1.5, playable ? 0xbba878 : 0x8a7a58, 1);
     }
     g.strokeRoundedRect(-tw/2, -th/2, tw, th, 7);
 
     // Parlaklık
-    if (playable) {
-      g.fillStyle(0xffffff, hovered ? 0.4 : 0.28);
-      g.fillRoundedRect(-tw/2+2, -th/2+2, tw-4, th*0.38, 5);
-    }
+    g.fillStyle(0xffffff, playable ? (hovered ? 0.4 : 0.28) : 0.1);
+    g.fillRoundedRect(-tw/2+2, -th/2+2, tw-4, th*0.38, 5);
 
     // Orta çizgi
-    g.lineStyle(1.5, playable ? 0xbba878 : 0x3a3020, 1);
+    g.lineStyle(1.5, playable ? 0xbba878 : 0x8a7a58, 1);
     g.lineBetween(0, -th/2+4, 0, th/2-4);
   }
 
