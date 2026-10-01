@@ -650,44 +650,62 @@ export class GameScene extends Phaser.Scene {
 
   // ── Oyun sonu ─────────────────────────────────────────
   showGameOver(result) {
+    if (this._gameOverShown) return;
+    this._gameOverShown = true;
+
     const W = this.W, H = this.H;
+    this.gameOverObjs = [];
 
     const ov = this.add.graphics().setDepth(60);
     ov.fillStyle(0x000000, 0.82);
     ov.fillRect(0, 0, W, H);
+    this.gameOverObjs.push(ov);
 
     const panel = this.add.graphics().setDepth(61);
     panel.fillStyle(0x0d1a0d, 1);
     panel.fillRoundedRect(W/2-175, H/2-140, 350, 280, 16);
     panel.lineStyle(1.5, 0xd4a843, 0.5);
     panel.strokeRoundedRect(W/2-175, H/2-140, 350, 280, 16);
+    this.gameOverObjs.push(panel);
 
     const emoji = result.team_a_score < result.team_b_score ? "🏆"
                 : result.team_b_score < result.team_a_score ? "😔" : "🤝";
 
-    this.add.text(W/2, H/2-100, emoji,         { fontSize:"52px" }).setOrigin(0.5).setDepth(62);
-    this.add.text(W/2, H/2-50,  "Oyun Bitti!", { fontSize:"24px", fontFamily:"system-ui", color:"#d4a843", fontStyle:"bold" }).setOrigin(0.5).setDepth(62);
-    this.add.text(W/2, H/2-18,  result.winner, { fontSize:"15px", fontFamily:"system-ui", color:"#4ade80" }).setOrigin(0.5).setDepth(62);
-
-    this.add.text(W/2-70, H/2+20, `Takım A\n${result.team_a_score}`, {
-      fontSize:"13px", fontFamily:"system-ui", color:"#34d399", align:"center",
-    }).setOrigin(0.5).setDepth(62);
-
-    this.add.text(W/2+70, H/2+20, `Takım B\n${result.team_b_score}`, {
-      fontSize:"13px", fontFamily:"system-ui", color:"#c084fc", align:"center",
-    }).setOrigin(0.5).setDepth(62);
+    [
+      this.add.text(W/2, H/2-100, emoji,         { fontSize:"52px" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2, H/2-50,  "Oyun Bitti!", { fontSize:"24px", fontFamily:"system-ui", color:"#d4a843", fontStyle:"bold" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2, H/2-18,  result.winner, { fontSize:"15px", fontFamily:"system-ui", color:"#4ade80" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2-70, H/2+20, `Takım A
+${result.team_a_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#34d399", align:"center" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2+70, H/2+20, `Takım B
+${result.team_b_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#c084fc", align:"center" }).setOrigin(0.5).setDepth(62),
+    ].forEach(t => this.gameOverObjs.push(t));
 
     const btn = this.add.text(W/2, H/2+80, "Tekrar Oyna", {
       fontSize:"16px", fontFamily:"system-ui", color:"#fff", fontStyle:"bold",
       backgroundColor:"#d4a843", padding:{ x:22, y:11 },
     }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor:true });
+    this.gameOverObjs.push(btn);
 
     btn.on("pointerover", () => btn.setStyle({ backgroundColor:"#b8922e" }));
     btn.on("pointerout",  () => btn.setStyle({ backgroundColor:"#d4a843" }));
     btn.on("pointerdown", () => {
+      btn.disableInteractive();
       if (this.ws?.readyState === WebSocket.OPEN)
         this.ws.send(JSON.stringify({ type:"rematch" }));
-      ov.destroy(); panel.destroy();
+      // Overlay'i kaldır
+      this.gameOverObjs.forEach(o => { try { o.destroy(); } catch(e){} });
+      this.gameOverObjs = [];
+      this._gameOverShown = false;
+      // Board ve eli temizle
+      this.boardContainer.removeAll(true);
+      this.emptyText?.setVisible(true);
+      this.endText?.setText("");
+      this.logText?.setText("");
+      this.thinkText?.setText("");
+      [...this.handTiles].forEach(t => { try { t.destroy(); } catch(e){} });
+      this.handTiles = [];
+      if (this.passBtn) { this.passBtn.destroy(); this.passBtn = null; }
     });
   }
 }
