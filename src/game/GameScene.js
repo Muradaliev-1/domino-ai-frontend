@@ -265,7 +265,12 @@ export class GameScene extends Phaser.Scene {
       this.myHand     = msg.your_hand    || [];
       this.legalMoves = msg.legal_moves  || [];
       this.isMyTurn   = msg.is_your_turn && !this.agentThinking;
-      this.refreshAll(msg);
+      // Animasyon bitmeden UI güncellenmesini önle
+      const delay = this._animating ? 250 : 0;
+      this.time.delayedCall(delay, () => {
+        this._animating = false;
+        this.refreshAll(msg);
+      });
     }
     else if (msg.type === "agent_thinking") {
       this.agentThinking = true;
@@ -571,9 +576,10 @@ export class GameScene extends Phaser.Scene {
           );
 
           if (move) {
-            // Masaya kayarak git — KAYBOLMADAN
+            // Masaya kayarak git
             const tx = this.tableX + this.tableW/2;
             const ty = this.tableY + this.tableH/2;
+            this._animating = true;
             this.tweens.add({
               targets:  c,
               x:        tx, y: ty,
