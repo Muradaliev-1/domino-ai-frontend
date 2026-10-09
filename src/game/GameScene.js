@@ -479,13 +479,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     // El taşlarını yerleştir
-    const maxTW  = 72;
-    const gap    = 6;
+    // Dikey taş: tw = tek yarı genişliği, th = toplam yükseklik (iki yarı)
+    const maxTW  = 44;   // dikey taşın genişliği
+    const gap    = 8;
     const totalW = hand.length * (maxTW + gap) - gap;
     const availW = this.hw - 32;
     const scale  = totalW > availW ? availW / totalW : 1;
     const tw     = maxTW * scale;
-    const th     = tw * 0.52;
+    const th     = tw * 1.9;  // yükseklik genişliğin ~2 katı
     const sp     = (tw + gap) * scale;
     const startX = this.W/2 - (hand.length * sp - gap*scale) / 2 + tw/2;
     const baseY  = this.hy + this.hh/2;
@@ -510,10 +511,10 @@ export class GameScene extends Phaser.Scene {
     this.drawTileGraphic(g, a, b, tw, th, playable);
     c.add(g);
 
-    // Nokta boyutu el için biraz daha büyük
-    const pipSz = tw / 2.2;
-    this.addPips(c, a, -tw/4, 0, tw/2, th, pipSz, playable);
-    this.addPips(c, b,  tw/4, 0, tw/2, th, pipSz, playable);
+    // Dikey taş: üst yarı = a, alt yarı = b
+    const pipSz = tw / 1.4;
+    this.addPips(c, a, 0, -th/4, tw, th/2, pipSz, playable);
+    this.addPips(c, b, 0,  th/4, tw, th/2, pipSz, playable);
 
     c.setAlpha(playable ? 1 : 0.65);  // daha görünür ama soluk
     c.setDepth(1);
@@ -632,9 +633,9 @@ export class GameScene extends Phaser.Scene {
     g.fillStyle(0xffffff, playable ? (hovered ? 0.4 : 0.28) : 0.1);
     g.fillRoundedRect(-tw/2+2, -th/2+2, tw-4, th*0.38, 5);
 
-    // Orta çizgi
+    // Orta çizgi — yatay (dikey taş için)
     g.lineStyle(1.5, playable ? 0xbba878 : 0x8a7a58, 1);
-    g.lineBetween(0, -th/2+4, 0, th/2-4);
+    g.lineBetween(-tw/2+4, 0, tw/2-4, 0);
   }
 
   isOverTable(px, py) {
