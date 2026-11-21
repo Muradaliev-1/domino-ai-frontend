@@ -25,6 +25,7 @@ export class GameScene extends Phaser.Scene {
     this.roomId     = data.roomId;
     this.players    = data.players || {};
     this.firstState = data.firstState || null;
+    this.pendingQueue = data.queue || [];   // WaitScene'den, açılmadan önce gelen mesajlar
 
     this.gameState     = null;
     this.myHand        = [];
@@ -100,6 +101,10 @@ export class GameScene extends Phaser.Scene {
 
     // İlk state: hemen işle (eskiden 100 ms gecikmeliydi; arada gelen yeni durumun üstüne eskisi çiziliyordu)
     if (this.firstState) this.handleMessage(this.firstState);
+    // Sahne açılmadan gelen mesajlar (arka plan sekmesi): sırayla işle. onmessage yukarıda bu sahneye geçti,
+    // JS tek iş parçacıklı olduğu için arada mesaj kaçmaz.
+    for (const m of this.pendingQueue) this.handleMessage(m);
+    this.pendingQueue.length = 0;
 
     // Resize: son durumu koruyarak yeniden kur. Dinleyici sahne kapanınca kaldırılır (eskiden her yeniden
     // başlatmada bir dinleyici daha ekleniyordu).

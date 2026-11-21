@@ -12,6 +12,8 @@ export class WaitScene extends Phaser.Scene {
     this.slot   = data.slot;
     this.players = {};
     this.started = false;
+    this.queue = [];      // GameScene açılana kadar gelen mesajlar (aşağıya bkz.)
+    this.preQueue = data.queue || [];   // LobbyScene'den, bu sahne açılmadan gelenler
   }
 
   create() {
@@ -41,8 +43,7 @@ export class WaitScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Tüm mesaj tiplerini yakala
-    this.ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data);
+    const handle = (msg) => {
       console.log("WaitScene msg:", msg.type, msg);
 
       if (msg.type === "room_full") {
@@ -56,6 +57,14 @@ export class WaitScene extends Phaser.Scene {
       // GameScene'e yalnız BİR KEZ, ilk game_state ile geç (backend game_started'dan hemen sonra gönderir).
       // Eskiden her mesajda scene.start çağrılıyordu: sahne art arda yeniden başlıyor, eski durum yenisinin
       // üstüne çizilebiliyordu.
+      // Sahne geçişi bir sonraki karede olur; sekme arka plandaysa tarayıcı Phaser döngüsünü durdurur ve GameScene
+      // sekme öne gelene kadar açılmaz. Bu arada gelen mesajlar (sonraki durumlar, tur sonu) atılmamalı: kuyruğa
+      // alınır, GameScene açılınca sırayla işler. Eskiden atılıyordu: arka plandaki sekme ilk (boş masa) durumda
+      // kalıyordu, sıra ona gelince oyun takılıyordu.
+      if (this.started) {
+        this.queue.push(msg);
+        return;
+      }
       if (msg.type === "game_state" && !this.started) {
         this.started = true;
         if (msg.players) this.players = msg.players;
@@ -66,8 +75,12 @@ export class WaitScene extends Phaser.Scene {
           roomId:     this.roomId,
           players:    this.players,
           firstState: msg,
+          queue:      this.queue,
         });
       }
     };
+    this.ws.onmessage = (ev) => handle(JSON.parse(ev.data));
+    const pre = this.preQueue.splice(0);
+    for (const m of pre) handle(m);
   }
 }

@@ -96,16 +96,23 @@ export class LobbyScene extends Phaser.Scene {
       console.log("WS connected");
     };
 
+    // "joined"dan sonra WaitScene açılana kadar gelen mesajlar (ikinci oyuncuda room_full, game_state hemen gelir;
+    // sekme arka plandaysa sahne geçişi sekme öne gelene kadar bekler) atılmaz, WaitScene'e kuyrukla verilir.
+    let pending = null;
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
 
-      if (msg.type === "joined") {
+      if (pending) {
+        pending.push(msg);
+      } else if (msg.type === "joined") {
+        pending = [];
         this.scene.start("WaitScene", {
           ws,
           name,
           roomId: msg.room_id,
           slot:   msg.slot,
           wsUrl:  this.wsUrl,
+          queue:  pending,
         });
       }
     };
