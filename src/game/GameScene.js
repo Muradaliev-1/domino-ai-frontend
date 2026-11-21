@@ -108,7 +108,19 @@ export class GameScene extends Phaser.Scene {
 
     // Resize: son durumu koruyarak yeniden kur. Dinleyici sahne kapanınca kaldırılır (eskiden her yeniden
     // başlatmada bir dinleyici daha ekleniyordu).
+    // B-18: kaydırma çubuğu gibi küçük, art arda gelen boyut değişimleri sahneyi sürekli yeniden kuruyordu (masa yanıp
+    // sönüyor, sürükleme yarıda kalıyordu). Yalnız gerçek boyut değişiminde (>40 px) ve değişim durulduktan sonra kur.
+    let resizeTimer = null;
     const onResize = () => {
+      if (resizeTimer) resizeTimer.remove(false);
+      resizeTimer = this.time.delayedCall(250, () => {
+        resizeTimer = null;
+        const w = this.scale.width, h = this.scale.height;
+        if (Math.abs(w - this.W) < 40 && Math.abs(h - this.H) < 40) return;
+        rebuild();
+      });
+    };
+    const rebuild = () => {
       this.scene.restart({
         ws: this.ws, name: this.myName, slot: this.slot,
         roomId: this.roomId, players: this.players,

@@ -5,6 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
+    <!-- Kenar boşluğu ve kaydırma çubuğu yok: canvas pencere boyutunda. Eskiden body'nin 8 px kenarı yüzünden
+         kaydırma çubuğu açılıp kapanıyor, her seferinde resize → sahne yeniden kuruluyordu (B-18). -->
+    <style>html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0a120a; }</style>
   </head>
   <body>
     <div id="root"></div>
