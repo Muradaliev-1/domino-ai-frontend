@@ -11,6 +11,7 @@ export class WaitScene extends Phaser.Scene {
     this.roomId = data.roomId;
     this.slot   = data.slot;
     this.players = {};
+    this.started = false;
   }
 
   create() {
@@ -50,17 +51,14 @@ export class WaitScene extends Phaser.Scene {
 
       if (msg.type === "game_started") {
         if (msg.players) this.players = msg.players;
-        this.scene.start("GameScene", {
-          ws:      this.ws,
-          name:    this.name,
-          slot:    this.slot,
-          roomId:  this.roomId,
-          players: this.players,
-        });
       }
 
-      // game_state gelirse de geç (bazen game_started'dan önce gelebilir)
-      if (msg.type === "game_state") {
+      // GameScene'e yalnız BİR KEZ, ilk game_state ile geç (backend game_started'dan hemen sonra gönderir).
+      // Eskiden her mesajda scene.start çağrılıyordu: sahne art arda yeniden başlıyor, eski durum yenisinin
+      // üstüne çizilebiliyordu.
+      if (msg.type === "game_state" && !this.started) {
+        this.started = true;
+        if (msg.players) this.players = msg.players;
         this.scene.start("GameScene", {
           ws:         this.ws,
           name:       this.name,

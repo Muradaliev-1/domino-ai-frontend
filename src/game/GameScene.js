@@ -86,7 +86,7 @@ export class GameScene extends Phaser.Scene {
     this.emptyText = this.add.text(
       this.tableX + this.tableW / 2,
       this.tableY + this.tableH / 2,
-      "Oyun (1|1) ile açıldı", {
+      "Açılış bekleniyor", {
         fontSize: "14px", fontFamily: "system-ui",
         color: "rgba(255,255,255,0.2)", fontStyle: "italic",
       }
@@ -98,18 +98,20 @@ export class GameScene extends Phaser.Scene {
       this.handleMessage(msg);
     };
 
-    // İlk state
-    if (this.firstState) {
-      this.time.delayedCall(100, () => this.handleMessage(this.firstState));
-    }
+    // İlk state: hemen işle (eskiden 100 ms gecikmeliydi; arada gelen yeni durumun üstüne eskisi çiziliyordu)
+    if (this.firstState) this.handleMessage(this.firstState);
 
-    // Resize
-    this.scale.on("resize", (gameSize) => {
+    // Resize: son durumu koruyarak yeniden kur. Dinleyici sahne kapanınca kaldırılır (eskiden her yeniden
+    // başlatmada bir dinleyici daha ekleniyordu).
+    const onResize = () => {
       this.scene.restart({
         ws: this.ws, name: this.myName, slot: this.slot,
         roomId: this.roomId, players: this.players,
+        firstState: this.gameState,
       });
-    });
+    };
+    this.scale.on("resize", onResize);
+    this.events.once("shutdown", () => this.scale.off("resize", onResize));
   }
 
   // ── Arka plan ─────────────────────────────────────────
@@ -670,25 +672,26 @@ export class GameScene extends Phaser.Scene {
 
     const panel = this.add.graphics().setDepth(61);
     panel.fillStyle(0x0d1a0d, 1);
-    panel.fillRoundedRect(W/2-175, H/2-140, 350, 280, 16);
+    panel.fillRoundedRect(W/2-190, H/2-150, 380, 310, 16);
     panel.lineStyle(1.5, 0xd4a843, 0.5);
-    panel.strokeRoundedRect(W/2-175, H/2-140, 350, 280, 16);
+    panel.strokeRoundedRect(W/2-190, H/2-150, 380, 310, 16);
     this.gameOverObjs.push(panel);
 
+    const matchOver = result.match_winner !== undefined && result.match_winner !== null;
     const emoji = result.team_a_score < result.team_b_score ? "🏆"
                 : result.team_b_score < result.team_a_score ? "😔" : "🤝";
 
     [
       this.add.text(W/2, H/2-100, emoji,         { fontSize:"52px" }).setOrigin(0.5).setDepth(62),
-      this.add.text(W/2, H/2-50,  "Oyun Bitti!", { fontSize:"24px", fontFamily:"system-ui", color:"#d4a843", fontStyle:"bold" }).setOrigin(0.5).setDepth(62),
-      this.add.text(W/2, H/2-18,  result.winner, { fontSize:"15px", fontFamily:"system-ui", color:"#4ade80" }).setOrigin(0.5).setDepth(62),
-      this.add.text(W/2-70, H/2+20, `Takım A
-${result.team_a_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#34d399", align:"center" }).setOrigin(0.5).setDepth(62),
-      this.add.text(W/2+70, H/2+20, `Takım B
-${result.team_b_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#c084fc", align:"center" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2, H/2-50,  matchOver ? "Maç Bitti!" : "Tur Bitti!", { fontSize:"24px", fontFamily:"system-ui", color:"#d4a843", fontStyle:"bold" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2, H/2-8,   result.winner, { fontSize:"14px", fontFamily:"system-ui", color:"#4ade80", align:"center", lineSpacing:6, wordWrap:{ width:350 } }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2-70, H/2+42, `Takım A
+el: ${result.team_a_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#34d399", align:"center" }).setOrigin(0.5).setDepth(62),
+      this.add.text(W/2+70, H/2+42, `Takım B
+el: ${result.team_b_score}`, { fontSize:"13px", fontFamily:"system-ui", color:"#c084fc", align:"center" }).setOrigin(0.5).setDepth(62),
     ].forEach(t => this.gameOverObjs.push(t));
 
-    const btn = this.add.text(W/2, H/2+80, "Tekrar Oyna", {
+    const btn = this.add.text(W/2, H/2+110, matchOver ? "Yeni Maç" : "Sonraki Tur", {
       fontSize:"16px", fontFamily:"system-ui", color:"#fff", fontStyle:"bold",
       backgroundColor:"#d4a843", padding:{ x:22, y:11 },
     }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor:true });
