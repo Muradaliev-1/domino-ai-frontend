@@ -1,16 +1,23 @@
-# React + Vite
+# Domino (demo arayüzü)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Azerbaycan dominosu: 2 insan (P1, P3) + 2 yapay zekâ (P2, P4), 101 puanlık maç. Backend: `domino-ai-backend` (FastAPI + WebSocket).
 
-Currently, two official plugins are available:
+TypeScript + Vite, çatısız DOM/CSS (Phaser yok). PWA olarak telefona kurulur; ileride aynı kod Capacitor ile iOS/Android uygulaması olur.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Mimari
+- `src/net.ts`: tek WebSocket, yeniden bağlanma (üstel bekleme), sekmeye özel jeton (`joined.token`, `?token=`)
+- `src/model.ts`: sunucu mesajı → model (saf `reduce`), iyimser hamle + hata gelirse geri alma
+- `src/view.ts`: tek `render(model)`. Taşlar kalıcı, kimlikli DOM öğeleri; animasyon önceki → yeni konum farkından, yarıda kesilirse görünen ara konumdan devam eder. Arka plandaki sekmede animasyonsuz, doğrudan son durum
+- `src/layout.ts`: yılan dizilim (saf; kenarda döner, çift taşlar enine, yerleşen taş kıpırdamaz). Dikey ekranda ana eksen dikey
+- `src/drag.ts`: Pointer Events ile sürükle-bırak (mıknatıs, uç parlaması, ele geri kayma) ve dokunarak oynama
+- `src/geometry.ts`: pencereden koltuk/masa/el yerleşimi
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Komutlar
+```
+npm install
+npm run dev        # VITE_WS_URL (.env.development: ws://localhost:8000/ws) ya da ?ws=ws://host/ws
+npm run build      # tsc + vite build → dist/
+npm test           # birim testleri (vitest)
+npm run e2e        # uçtan uca: gerçek backend (../backend) + Vite + Microsoft Edge (Playwright, channel msedge)
+```
+Üretimde WebSocket adresi `VITE_WS_URL` (Vercel ortam değişkeni) ya da varsayılan Render adresi.

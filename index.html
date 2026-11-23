@@ -1,17 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-    <!-- Kenar boşluğu ve kaydırma çubuğu yok: canvas pencere boyutunda. Eskiden body'nin 8 px kenarı yüzünden
-         kaydırma çubuğu açılıp kapanıyor, her seferinde resize → sahne yeniden kuruluyordu (B-18). -->
-    <!-- #root'a yükseklik verme: canvas body'de #root'tan sonra geliyor, #root yer kaplarsa canvas ekran dışına itilir (B-19). -->
-    <style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0a120a; }</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b3a2c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Azerbaycan dominosu: iki insan, iki yapay zekâ, 101 puanlık maç." />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Domino</title>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
