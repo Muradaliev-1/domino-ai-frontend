@@ -15,7 +15,8 @@ const PIPS: Record<number, Array<[number, number]>> = {
   3: [[25, 25], [50, 50], [75, 75]],
   4: [[27, 27], [73, 27], [27, 73], [73, 73]],
   5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
-  6: [[27, 22], [73, 22], [27, 50], [73, 50], [27, 78], [73, 78]],
+  // taşın temel duruşu yatay: üçlü sıralar taşın uzun kenarına paralel. Dik duran taşta (el) 3 satır × 2 sütun görünür
+  6: [[22, 27], [50, 27], [78, 27], [22, 73], [50, 73], [78, 73]],
 }
 
 export function makeTile(a: number, b: number, id: string): HTMLElement {
