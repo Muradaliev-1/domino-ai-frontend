@@ -29,7 +29,7 @@ function update(m: Model) {
   model = m
   view.invalidate(m)
   // testler ve hata ayıklama için (oyun mantığı kullanmaz)
-  ;(window as unknown as { __domino: unknown }).__domino = { model: m, net: conn?.status, trace }
+  ;(window as unknown as { __domino: unknown }).__domino = { model: m, net: conn?.status, trace, view }
 }
 
 const conn = new Connection(

@@ -156,19 +156,37 @@ export class View {
   /** Çizim isteği (bir kare içinde birleştirilir). */
   invalidate(model: Model) {
     this.model = model
-    if (!this.raf) this.invalidatedAt = performance.now()
+    if (!this.pending) this.invalidatedAt = performance.now()
     if (document.hidden) {
       // arka plan: rAF çalışmaz; son durum hemen, animasyonsuz yazılır
-      cancelAnimationFrame(this.raf)
-      this.raf = 0
+      this.cancelScheduled()
       this.render(false)
       return
     }
-    if (!this.raf)
-      this.raf = requestAnimationFrame(() => {
-        this.raf = 0
-        this.render(performance.now() - this.invalidatedAt < 250)
-      })
+    if (this.pending) return
+    // Tarayıcı bazen sayfayı "görünür" bildirirken rAF'ı durdurur (gizli panel, küçültülmüş/örtülü pencere).
+    // Bu yüzden rAF ile birlikte bir zamanlayıcı da kurulur; hangisi önce gelirse çizer. Zamanlayıcıyla
+    // gelen çizim animasyonsuzdur (kimse izlemiyor), ekran yine de her zaman son durumu gösterir.
+    this.pending = true
+    const run = (viaRaf: boolean) => {
+      if (!this.pending) return
+      this.cancelScheduled()
+      this.render(viaRaf && performance.now() - this.invalidatedAt < 250)
+    }
+    this.raf = requestAnimationFrame(() => run(true))
+    this.fallback = window.setTimeout(() => run(false), 120)
+  }
+  private fallback: number | undefined
+  private pending = false
+  /** Çizilmeyi bekleyen bir durum var mı (testler ve hata ayıklama için). */
+  get renderPending() {
+    return this.pending
+  }
+  private cancelScheduled() {
+    this.pending = false
+    cancelAnimationFrame(this.raf)
+    clearTimeout(this.fallback)
+    this.raf = 0
   }
 
   /** Pencere boyutu değişti: geometri baştan, animasyonsuz. */

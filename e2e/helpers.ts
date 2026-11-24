@@ -20,10 +20,15 @@ export async function model(page: Page): Promise<M> {
 }
 
 /** İki oyunculu oda: iki ayrı sekme (sessionStorage sekmeye özel → iki koltuk). */
-export async function twoPlayers(browser: Browser, opts: { viewport?: { width: number; height: number }; hasTouch?: boolean } = {}) {
+export async function twoPlayers(
+  browser: Browser,
+  opts: { viewport?: { width: number; height: number }; hasTouch?: boolean; blockRafB?: boolean } = {},
+) {
   const ctx = await browser.newContext({ viewport: opts.viewport ?? { width: 1280, height: 760 }, hasTouch: opts.hasTouch })
   const a = await ctx.newPage()
   const b = await ctx.newPage()
+  // tarayıcının "görünür ama rAF durmuş" hâli (gizli panel, örtülü pencere): canlıda bulundu, 2026-11-24
+  if (opts.blockRafB) await b.addInitScript(() => { window.requestAnimationFrame = () => 0 })
   const errors: string[] = []
   for (const p of [a, b]) {
     p.on('pageerror', (e) => errors.push(String(e)))
@@ -133,7 +138,9 @@ export async function playRound(a: Page, b: Page, mode: Mode | ((i: number) => M
 /** Taş animasyonları bitene kadar bekle (ölçüm son kareyi görsün). */
 export async function settle(page: Page) {
   // polling: rAF değil (arka plan sekmesi testinde rAF durduruluyor)
+  // bekleyen çizim kalmasın (rAF durmuşsa çizim 120 ms zamanlayıcıyla gelir) ve taş animasyonları bitsin
   await page.waitForFunction(() =>
+    !(window as unknown as { __domino: { view: { renderPending: boolean } } }).__domino.view.renderPending &&
     document.getAnimations().every((a) => a.playState !== 'running' || !(a.effect as KeyframeEffect | null)?.target?.classList.contains('tile')),
     undefined, { polling: 100 },
   )
@@ -145,7 +152,9 @@ export async function checkBoard(page: Page) {
   expect(await page.evaluate(() => [document.documentElement, document.body, document.getElementById('app')!, ...document.querySelectorAll('#app > *')]
     .map((e) => (e as HTMLElement).scrollLeft + (e as HTMLElement).scrollTop).reduce((x, y) => x + y, 0))).toBe(0)
   // model ve DOM aynı anda okunur (oyun sürüyor: ayrı okumalarda arada bot oynayabilir)
-  const snap = await page.evaluate(() => {
+  let snap
+  for (let k = 0; ; k++) {
+  snap = await page.evaluate(() => {
     const d = (window as unknown as { __domino: { model: M; trace: string[] } }).__domino
     const moving = new Set(document.getAnimations().filter((a) => a.playState === 'running')
       .map((a) => ((a.effect as KeyframeEffect | null)?.target as HTMLElement | null)?.dataset?.id).filter(Boolean))
@@ -153,8 +162,11 @@ export async function checkBoard(page: Page) {
       const r = el.getBoundingClientRect()
       return { id: el.dataset.id!, x: r.x, y: r.y, w: r.width, h: r.height, moving: moving.has(el.dataset.id) }
     })
-    return { board: d.model.board, boxes, trace: d.trace.slice(-12).join(' | ') }
+    return { board: d.model.board, boxes, trace: d.trace.slice(-12).join(' | '), pending: (d as unknown as { view: { renderPending: boolean } }).view.renderPending }
   })
+  if (!snap.pending || k > 30) break
+  await page.waitForTimeout(50)
+  }
   const boxes = snap.boxes
   expect(boxes.map((b) => b.id).sort(), `masadaki taşlar = model ${snap.trace}`).toEqual(snap.board.map(tileId).sort())
   const vp = page.viewportSize()!
@@ -178,14 +190,19 @@ export async function checkBoard(page: Page) {
 /** El taşları ekranda, birbirine binmiyor, modeldeki elle aynı. */
 export async function checkHand(page: Page) {
   await settle(page)
-  const snap = await page.evaluate(() => {
+  let snap
+  for (let k = 0; ; k++) {
+  snap = await page.evaluate(() => {
     const m = (window as unknown as { __domino: { model: M } }).__domino.model
     const boxes = [...document.querySelectorAll<HTMLElement>('.layer .tile.hand')].map((el) => {
       const r = el.getBoundingClientRect()
       return { id: el.dataset.id!, x: r.x, y: r.y, w: r.width, h: r.height }
     })
-    return { board: m.board, hand: m.hand, boxes }
+    return { board: m.board, hand: m.hand, boxes, pending: (window as unknown as { __domino: { view: { renderPending: boolean } } }).__domino.view.renderPending }
   })
+  if (!snap.pending || k > 30) break
+  await page.waitForTimeout(50)
+  }
   const onBoard = new Set(snap.board.map(tileId))
   const want = snap.hand.map(tileId).filter((id) => !onBoard.has(id)).sort()
   const boxes = snap.boxes

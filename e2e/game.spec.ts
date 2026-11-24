@@ -114,6 +114,19 @@ test('E-3 arka plandaki sekme: rAF dururken gelen hamleler ekrana doğru yazıl�
   await ctx.close()
 })
 
+test('E-3b sayfa görünür ama rAF hiç çalışmıyor: lobiden oyuna geçer, ekran her hamlede doğru, tur biter', async ({ browser }) => {
+  const { ctx, a, b, errors } = await twoPlayers(browser, { blockRafB: true })
+  await expect(b.locator('#app')).toHaveAttribute('data-screen', 'game')
+  for (let k = 0; k < 8; k++) if (!(await playOne(a)) && !(await playOne(b, 'tap'))) await a.waitForTimeout(150)
+  await checkBoard(b)
+  await checkHand(b)
+  await playRound(a, b, 'tap')
+  await checkBoard(b)
+  await expect(b.locator('.overlay.show .card')).toBeVisible()
+  expect(errors, 'konsol hataları').toEqual([])
+  await ctx.close()
+})
+
 test('E-4 sayfa yenileme: aynı koltuğa döner, el ve masa aynı, tur biter', async ({ browser }) => {
   const { ctx, a, b, errors } = await twoPlayers(browser)
   for (let k = 0; k < 6; k++) {
