@@ -169,9 +169,17 @@ export function visibleHand(m: Model): Tile[] {
   return m.hand.filter((t) => !onBoard.has(tileId(t)))
 }
 
-/** Bir taşın oynanabileceği uçlar (D-18: eşit uçlarda sunucu tek kanonik hamle verir, biz de tek uç gösteririz). */
+/**
+ * Bir taşın oynanabileceği uçlar. D-18: uçlar eşitken sunucu tek kanonik hamle (sol) verir; sol ve sağ oyun
+ * açısından aynı hamlenin iki fiziksel yerleşimidir ve sunucu aynalı sağı da kabul edip gerçekten sağa koyar.
+ * İnsan masada istediği uca koyabilsin diye burada aynalı sağ seçenek de sunulur.
+ */
 export function optionsFor(m: Model, t: Tile): MoveDict[] {
-  return m.legal.filter((mv) => !mv.is_pass && sameTile(mv.tile, t))
+  const opts = m.legal.filter((mv) => !mv.is_pass && sameTile(mv.tile, t))
+  const [lv, rv] = m.ends
+  if (m.board.length > 0 && lv === rv && opts.length === 1 && opts[0].to_left)
+    opts.push({ ...opts[0], to_left: false })
+  return opts
 }
 
 export const mustPass = (m: Model) => m.legal.length > 0 && m.legal.every((mv) => mv.is_pass)

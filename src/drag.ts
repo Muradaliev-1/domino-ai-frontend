@@ -30,8 +30,8 @@ export function installInput(view: View, play: (mv: MoveDict) => void) {
   const tileAt = (e: PointerEvent) => (e.target as HTMLElement).closest<HTMLElement>('.tile.hand')
   const ghostAt = (e: PointerEvent) => (e.target as HTMLElement).closest<HTMLElement>('.ghost')
 
-  const legalStill = (mv: MoveDict) =>
-    view.model.legal.some((x) => !x.is_pass && x.to_left === mv.to_left && x.tile[0] === mv.tile[0] && x.tile[1] === mv.tile[1])
+  // hâlâ oynanabilir mi (aynalı sağ dahil, D-18; bkz. optionsFor)
+  const legalStill = (mv: MoveDict) => optionsFor(view.model, mv.tile).some((x) => x.to_left === mv.to_left)
 
   function commit(mv: MoveDict) {
     if (!legalStill(mv)) return false

@@ -88,7 +88,13 @@ export async function playOne(page: Page, mode: Mode = 'drag'): Promise<boolean>
     })
   } else {
     await tile.click()
-    if (sameTile.length > 1) await page.locator(`.ghost[data-side="${side}"]`).click()
+    // iki uç sunulduysa (farklı uçlar ya da eşit uçlarda aynalı sağ, D-18) uç seçilir
+    const ghost = page.locator(`.ghost[data-side="${side}"]`)
+    if (sameTile.length > 1) await ghost.click()
+    else {
+      await page.waitForTimeout(150)
+      if ((await page.locator('.ghost').count()) > 0) await ghost.click()
+    }
   }
   await expect.poll(async () => (await model(page)).legal.length).toBe(0)
   return true

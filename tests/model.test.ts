@@ -48,9 +48,15 @@ describe('model', () => {
     m = reduce(m, { type: 'agent_move', player: 2, move: { tile: [1, 6], to_left: false, is_pass: false }, board: [[1, 1], [1, 6]] })
     expect(m.handSizes[2]).toBe(6)
   })
-  it('M-5 eşit uçlarda tek seçenek (D-18): sunucunun verdiği kadar uç', () => {
+  it('M-5 eşit uçlarda sunucu tek kanonik (sol) hamle verir, arayüz aynalı sağı da sunar (D-18)', () => {
     const m = reduce(initialModel(), state({ board: [[3, 3]], left_val: 3, right_val: 3, legal_moves: [{ tile: [3, 5], to_left: true, is_pass: false }], your_hand: [[3, 5]] }))
-    expect(optionsFor(m, [5, 3]).length).toBe(1)
+    expect(optionsFor(m, [5, 3]).map((x) => x.to_left)).toEqual([true, false])
+    // uçlar farklıysa yalnız sunucunun verdiği
+    const d = reduce(initialModel(), state({ board: [[3, 4]], left_val: 3, right_val: 4, legal_moves: [{ tile: [3, 5], to_left: true, is_pass: false }], your_hand: [[3, 5]] }))
+    expect(optionsFor(d, [3, 5]).length).toBe(1)
+    // aynalı sağ yerleşim tahtayı gerçekten sağa uzatır
+    const r = playLocal(m, { tile: [3, 5], to_left: false, is_pass: false })
+    expect(r.board).toEqual([[3, 3], [3, 5]])
   })
   it('M-6 applyLocal sunucunun yönlendirmesiyle aynı', () => {
     expect(applyLocal([[1, 2]], { tile: [1, 5], to_left: true, is_pass: false })).toEqual([[5, 1], [1, 2]])

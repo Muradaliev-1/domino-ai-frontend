@@ -162,3 +162,52 @@ test('E-5 pencere boyutu değişimi oyun ortasında: yeniden yerleşir, durum ko
   expect(errors, 'konsol hataları').toEqual([])
   await ctx.close()
 })
+
+test('E-7 uçlar eşitken taş iki uca da konabilir: sağa bırakılan taş sunucuda kabul edilir ve sağda durur (D-18)', async ({ browser }) => {
+  const { ctx, a, b, errors } = await twoPlayers(browser)
+  // eşit uçlu bir sıra bulana kadar oyna (açılış (1|1) olduğundan ilk turlarda sık görülür)
+  let found: { p: typeof a; id: string } | null = null
+  for (let k = 0; k < 2000 && !found; k++) {
+    for (const p of [a, b]) {
+      const m = await model(p)
+      if (m.roundOver) {
+        await p.locator('.overlay.show button.primary').click({ timeout: 3000 }).catch(() => undefined)
+        continue
+      }
+      const ends = (m as unknown as { ends: [number, number] }).ends
+      const opt = m.legal.find((x) => !x.is_pass)
+      if (opt && m.board.length > 0 && ends[0] === ends[1]) { found = { p, id: tileId(opt.tile) }; break }
+      if (m.legal.length) await playOne(p)
+    }
+    if (!found) await a.waitForTimeout(40)
+  }
+  expect(found, 'eşit uçlu sıra bulunamadı').not.toBeNull()
+  const { p, id } = found!
+  await settle(p)
+  const before = await model(p)
+  const tile = p.locator(`.tile.hand[data-id="${id}"]`)
+  const box = (await tile.boundingBox())!
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await p.mouse.down()
+  await p.mouse.move(box.x + box.width / 2 + 3, box.y - 20, { steps: 3 })
+  await expect(p.locator('.ghost')).toHaveCount(2) // iki uç da parlıyor
+  const g = p.locator('.ghost[data-side="R"]')
+  await g.waitFor()
+  const gb = (await g.boundingBox())!
+  await p.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2, { steps: 10 })
+  await p.mouse.up()
+  // sunucu kabul etti (hata yok) ve taş önceki sağ uçtaki taşın hemen sağına kondu (sonraki hamlelerden bağımsız)
+  const prevRight = tileId(before.board[before.board.length - 1])
+  await expect.poll(async () => {
+    const ids = (await model(p)).board.map(tileId)
+    const i = ids.indexOf(prevRight)
+    return i >= 0 && ids[i + 1] === id
+  }).toBe(true)
+  await p.waitForTimeout(400)
+  const tr = await p.evaluate(() => (window as unknown as { __domino: { trace: string[] } }).__domino.trace.join(' | '))
+  expect(tr).toContain(' R')
+  expect(tr).not.toContain('< error')
+  await checkBoard(p)
+  expect(errors, 'konsol hataları').toEqual([])
+  await ctx.close()
+})
