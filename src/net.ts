@@ -41,6 +41,7 @@ export class Connection {
   status: NetStatus = 'idle'
   private ws: WebSocket | null = null
   private name = ''
+  private players = 4
   private attempt = 0
   private retryTimer: number | undefined
   private pingTimer: number | undefined
@@ -59,18 +60,19 @@ export class Connection {
     window.addEventListener('online', kick)
   }
 
-  connect(name: string) {
+  connect(name: string, players = this.players) {
     this.name = name
+    this.players = players
     this.stopped = false
     session.name = name
     this.open(false)
   }
 
   /** Jetonsuz yeni oyun (jeton unutulur). */
-  fresh(name: string) {
+  fresh(name: string, players = 4) {
     session.token = null
     this.close()
-    this.connect(name)
+    this.connect(name, players)
   }
 
   close() {
@@ -107,7 +109,11 @@ export class Connection {
     }
     this.setStatus(isRetry ? 'reconnecting' : 'connecting')
     const token = session.token
-    const url = `${wsBase()}/${encodeURIComponent(this.name)}` + (token ? `?token=${encodeURIComponent(token)}` : '')
+    const q = new URLSearchParams()
+    if (token) q.set('token', token)
+    if (this.players === 2) q.set('mode', '2') // jeton varsa sunucu koltuğu jetonla bulur, mod yok sayılır
+    const qs = q.toString()
+    const url = `${wsBase()}/${encodeURIComponent(this.name)}` + (qs ? `?${qs}` : '')
     const ws = new WebSocket(url)
     this.ws = ws
     ws.onopen = () => {

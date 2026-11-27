@@ -17,7 +17,7 @@ const root = document.getElementById('app')!
 const view = new View(root, {
   onPlay: (mv) => play(mv),
   onRematch: () => conn.send({ type: 'rematch' }),
-  onJoin: (name) => conn.fresh(name),
+  onJoin: (name, players) => conn.fresh(name, players),
   onLeave: () => {
     conn.close()
     session.token = null

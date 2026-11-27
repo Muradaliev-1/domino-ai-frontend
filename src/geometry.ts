@@ -65,9 +65,13 @@ export function computeGeometry(vw: number, vh: number, safeTop = 0, safeBottom 
 /** El taşlarının merkezleri (dikey taşlar, ortalanmış sıra). */
 export function handSlots(g: Geometry, n: number): Pt[] {
   const w = g.uHand
-  const total = n * w + Math.max(0, n - 1) * g.handGap
+  // 2 kişilikte bazardan çekişle el 19 taşa çıkabilir: sığmazsa taşlar üst üste biner (adım küçülür)
+  const step = n > 1 ? Math.min(w + g.handGap, (g.vw - 16 - w) / (n - 1)) : 0
+  const total = w + Math.max(0, n - 1) * step
   const x0 = g.vw / 2 - total / 2 + w / 2
-  return Array.from({ length: n }, (_, i) => ({ x: x0 + i * (w + g.handGap), y: g.handY }))
+  return Array.from({ length: n }, (_, i) => ({ x: x0 + i * step, y: g.handY }))
 }
 
-export const relSeat = (player: number, me: number): 0 | 1 | 2 | 3 => (((player - me) % 4) + 4) % 4 as 0 | 1 | 2 | 3
+/** Ekrandaki göreli koltuk. 2 kişilikte rakip karşıda (2). */
+export const relSeat = (player: number, me: number, players = 4): 0 | 1 | 2 | 3 =>
+  players === 2 ? (player === me ? 0 : 2) : ((((player - me) % 4) + 4) % 4 as 0 | 1 | 2 | 3)

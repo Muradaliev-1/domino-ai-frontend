@@ -33,6 +33,10 @@ export interface GameStateMsg {
   players: Record<string, string>
   missing_numbers: boolean[][]
   match: MatchPublic
+  /** 2 kişilik mod (R-20..R-28): yoksa 4 */
+  num_players?: number
+  /** bazardaki taş sayısı (2 kişilik), içeriği gizli */
+  boneyard_size?: number
 }
 
 export interface GameOverMsg {
@@ -45,6 +49,7 @@ export interface GameOverMsg {
   round_winner_team: 0 | 1 | null
   match: MatchPublic
   match_winner: 0 | 1 | null
+  num_players?: number
 }
 
 export interface MoveMsg {
@@ -56,7 +61,8 @@ export interface MoveMsg {
 }
 
 export type ServerMsg =
-  | { type: 'joined'; room_id: string; slot: number; token?: string; resumed?: boolean; message: string; waiting: boolean }
+  | { type: 'joined'; room_id: string; slot: number; token?: string; resumed?: boolean; message: string; waiting: boolean; num_players?: number }
+  | { type: 'drew'; player: number; count: number; boneyard_size: number }
   | { type: 'room_full'; message: string }
   | { type: 'game_started'; message: string; players: Record<string, string> }
   | GameStateMsg

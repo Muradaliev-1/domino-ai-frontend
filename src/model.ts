@@ -35,6 +35,12 @@ export interface Model {
   /** iyimser hamle: sunucu onaylayana kadar önceki durum (hata gelirse geri dönülür) */
   pending: { move: MoveDict; snapshot: Model } | null
   roomId: string | null
+  /** oyuncu sayısı: 4 (2 insan + 2 bot) ya da 2 (sen + bot, bazarlı) */
+  players: number
+  /** bazardaki taş sayısı (yalnız 2 kişilik) */
+  boneyard: number
+  /** bildirimde art arda çekişleri toplamak için: kim, kaç taş, hangi hamleden sonra */
+  drawRun?: { player: number; n: number; seq: number }
 }
 
 export function initialModel(): Model {
@@ -42,6 +48,7 @@ export function initialModel(): Model {
     screen: 'lobby', me: 0, names: {}, board: [], anchor: 0, hand: [], handSizes: [7, 7, 7, 7], current: -1,
     legal: [], ends: [-1, -1], match: null, roundOver: null, last: null, seq: 0, thinking: null,
     notice: null, noticeSeq: 0, partnerAway: false, pending: null, roomId: null,
+    players: 4, boneyard: 0,
   }
 }
 
@@ -77,6 +84,7 @@ export function reduce(m: Model, msg: ServerMsg): Model {
         ...m,
         roomId: msg.room_id,
         me: msg.slot === 1 ? 2 : 0,
+        players: msg.num_players ?? 4,
         screen: msg.resumed ? m.screen === 'lobby' ? (msg.waiting ? 'waiting' : 'game') : m.screen : 'waiting',
         ...(msg.resumed ? {} : { board: [], anchor: 0, roundOver: null, match: null, last: null }),
         pending: null,
@@ -98,6 +106,8 @@ export function reduce(m: Model, msg: ServerMsg): Model {
         ...base,
         me: s.your_index,
         names,
+        players: s.num_players ?? 4,
+        boneyard: s.boneyard_size ?? 0,
         hand: s.your_hand,
         handSizes: s.hand_sizes,
         current: s.current_player,
@@ -122,11 +132,21 @@ export function reduce(m: Model, msg: ServerMsg): Model {
         handSizes: mine ? m.handSizes : sizes,
         thinking: null,
         legal: msg.player === m.me ? [] : m.legal,
-        current: (msg.player + 1) % 4,
+        current: (msg.player + 1) % m.players,
         last: { player: msg.player, kind: msg.move.is_pass ? 'pass' : 'tile', tile: msg.move.is_pass ? undefined : tileId(msg.move.tile), seq },
         seq,
         pending: mine ? null : m.pending,
       }
+    }
+    case 'drew': {
+      // zorunlu çekiş (R-21): kim kaç taş çekti public, taşlar gizli (R-28). Kendi elim durum mesajıyla gelir.
+      const sizes = [...m.handSizes]
+      sizes[msg.player] = (sizes[msg.player] ?? 0) + msg.count
+      const mine = msg.player === m.me
+      // aynı oyuncunun art arda çekişleri tek bildirimde toplanır
+      const total = m.drawRun && m.drawRun.player === msg.player && m.drawRun.seq === m.seq ? m.drawRun.n + msg.count : msg.count
+      const text = mine ? `Bazardan ${total} taş çektin` : `Yapay zekâ bazardan ${total} taş çekti`
+      return noted({ ...m, handSizes: sizes, boneyard: msg.boneyard_size, drawRun: { player: msg.player, n: total, seq: m.seq } }, text)
     }
     case 'agent_thinking':
       return { ...m, thinking: msg.player, current: msg.player }
@@ -156,7 +176,7 @@ export function playLocal(m: Model, mv: MoveDict): Model {
     hand: mv.is_pass ? m.hand : m.hand.filter((t) => !sameTile(t, mv.tile)),
     handSizes: sizes,
     legal: [],
-    current: (m.me + 1) % 4,
+    current: (m.me + 1) % m.players,
     last: { player: m.me, kind: mv.is_pass ? 'pass' : 'tile', tile: mv.is_pass ? undefined : tileId(mv.tile), seq },
     seq,
     pending: { move: mv, snapshot: m },

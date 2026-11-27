@@ -17,7 +17,7 @@ export interface Target {
 export interface ViewHooks {
   onPlay: (mv: MoveDict) => void
   onRematch: () => void
-  onJoin: (name: string) => void
+  onJoin: (name: string, players?: number) => void
   onLeave: () => void
 }
 
@@ -47,7 +47,7 @@ export class View {
   private endsLayer: HTMLElement
   private sprites = new Map<string, TileSprite>()
   private seats: Record<1 | 2 | 3, SeatEls>
-  private hud: { a: HTMLElement; b: HTMLElement; barA: HTMLElement; barB: HTMLElement; meta: HTMLElement }
+  private hud: { a: HTMLElement; b: HTMLElement; barA: HTMLElement; barB: HTMLElement; meta: HTMLElement; lblA: HTMLElement }
   private banner: HTMLElement
   private toast: HTMLElement
   private hint: HTMLElement
@@ -78,7 +78,7 @@ export class View {
     const hud = h('div', 'hud', this.table)
     const pill = h('div', 'score', hud)
     const a = h('div', 'team a', pill)
-    h('span', 'lbl', a, 'Biz')
+    const lblA = h('span', 'lbl', a, 'Biz')
     const sa = h('span', 'pts', a, '0')
     const mid = h('div', 'mid', pill)
     const ba = h('div', 'bar a', mid)
@@ -89,7 +89,7 @@ export class View {
     const b = h('div', 'team b', pill)
     const sb = h('span', 'pts', b, '0')
     h('span', 'lbl', b, 'Bot')
-    this.hud = { a: sa, b: sb, barA, barB, meta }
+    this.hud = { a: sa, b: sb, barA, barB, meta, lblA }
     this.banner = h('div', 'banner', this.table)
     // koltuklar
     const mkSeat = (rel: 1 | 2 | 3): SeatEls => {
@@ -124,15 +124,19 @@ export class View {
     const card = h('form', 'card', this.lobby)
     h('div', 'logo', card).innerHTML = '<span class="lt"></span><span class="lt"></span>'
     h('h1', '', card, 'Domino')
-    h('p', 'muted', card, 'Azerbaycan dominosu · 2 insan + 2 yapay zekâ · 101 puan')
+    h('p', 'muted', card, 'Azerbaycan dominosu · 101 puan')
     this.nameInput = h('input', 'name', card)
     this.nameInput.placeholder = 'Adın'
     this.nameInput.maxLength = 20
     this.nameInput.setAttribute('autocomplete', 'nickname')
     this.nameInput.enterKeyHint = 'go'
-    const go = h('button', 'primary', card, 'Oyna')
+    const go = h('button', 'primary', card, 'Oyna (4 kişi)')
     go.type = 'submit'
-    h('p', 'tiny', card, 'İki sekmede aynı adla girersen iki eli birden oynarsın (kayıtta işaretlenir).')
+    // 2 kişilik (R-20..R-28): sen ve yapay zekâ, bazarlı; bekleme yok
+    const duo = h('button', 'secondary duo', card, 'Bota karşı (2 kişi)')
+    duo.type = 'button'
+    duo.addEventListener('click', () => this.hooks.onJoin(this.nameInput.value.trim() || 'Oyuncu', 2))
+    h('p', 'tiny', card, '4 kişi: 2 insan + 2 yapay zekâ; iki sekmede aynı adla girersen iki eli birden oynarsın (kayıtta işaretlenir). 2 kişi: sen ve yapay zekâ, bazardan 2\'şer çekilir.')
     card.addEventListener('submit', (e) => {
       e.preventDefault()
       const n = this.nameInput.value.trim() || 'Oyuncu'
@@ -224,7 +228,7 @@ export class View {
   }
 
   seatPt(player: number): Pt {
-    const rel = relSeat(player, this.model.me)
+    const rel = relSeat(player, this.model.me, this.model.players)
     if (rel === 0) return { x: this.g.vw / 2, y: this.g.handY }
     return this.g.seats[rel]
   }
@@ -298,7 +302,7 @@ export class View {
       let from: T | undefined
       if (isLast && !this.sprites.has(id) && last.player !== m.me) {
         const sp = this.seatPt(last.player)
-        from = { x: sp.x, y: sp.y, rot: tt.rot + (relSeat(last.player, m.me) === 2 ? 0 : 90), s: 0.55 * tt.s, o: 0 }
+        from = { x: sp.x, y: sp.y, rot: tt.rot + (relSeat(last.player, m.me, m.players) === 2 ? 0 : 90), s: 0.55 * tt.s, o: 0 }
       }
       want.set(id, { tile: t, t: tt, z: 10 + i, cls: isLast ? 'last' : '', from, dur: from ? 520 : 380 })
     })
@@ -320,7 +324,7 @@ export class View {
       m.roundOver.hands.forEach((tiles, p) => {
         if (p === m.me) return
         const sp = this.seatPt(p)
-        const rel = relSeat(p, m.me)
+        const rel = relSeat(p, m.me, m.players)
         const uR = g.portrait ? 13 : 16
         const s = uR / g.u
         const n = tiles.length
@@ -388,7 +392,8 @@ export class View {
     this.hud.b.textContent = String(sc[1])
     this.hud.barA.style.width = `${Math.min(100, (sc[0] / target) * 100)}%`
     this.hud.barB.style.width = `${Math.min(100, (sc[1] / target) * 100)}%`
-    this.hud.meta.textContent = `${target}'e · Tur ${m.match?.round_no ?? 1}`
+    this.hud.meta.textContent = `${target}'e · Tur ${m.match?.round_no ?? 1}` + (m.players === 2 ? ` · Bazar ${m.boneyard}` : '')
+    this.hud.lblA.textContent = m.players === 2 ? 'Sen' : 'Biz'
     const st = this.netState
     this.banner.textContent = st === 'reconnecting' || st === 'connecting' ? 'Bağlantı kuruluyor…' : st === 'closed' && m.screen !== 'lobby' ? 'Bağlantı kapandı (başka sekmede açık olabilir)' : ''
     this.banner.classList.toggle('show', !!this.banner.textContent && m.screen !== 'lobby')
@@ -398,11 +403,14 @@ export class View {
     const m = this.model
     const g = this.g
     for (const rel of [1, 2, 3] as const) {
-      const p = (m.me + rel) % 4
       const s = this.seats[rel]
+      const duo = m.players === 2
+      s.root.style.display = duo && rel !== 2 ? 'none' : ''           // 2 kişilikte yalnız karşı koltuk
+      if (duo && rel !== 2) continue
+      const p = duo ? 1 - m.me : (m.me + rel) % 4
       const pt = g.seats[rel]
       s.root.style.transform = `translate(${pt.x}px, ${pt.y}px)`
-      const isBot = BOT_SEATS.has(p)
+      const isBot = duo ? p === 1 : BOT_SEATS.has(p)
       s.av.firstElementChild!.textContent = `P${p + 1}`
       s.root.classList.toggle('team-a', teamOf(p) === 0)
       s.root.classList.toggle('team-b', teamOf(p) === 1)
@@ -457,8 +465,8 @@ export class View {
       if (pass) text = 'Oynanacak taşın yok'
       else if (myTurn) text = m.board.length === 0 ? 'Sıra sende · açılış taşını sürükle ya da dokun' : 'Sıra sende · sürükle ya da dokun'
       else if (m.current >= 0) {
-        const rel = relSeat(m.current, m.me)
-        text = rel === 2 ? `${m.names[m.current] || 'Partner'} oynuyor…` : 'Yapay zekâ düşünüyor…'
+        const rel = relSeat(m.current, m.me, m.players)
+        text = rel === 2 && m.players === 4 ? `${m.names[m.current] || 'Partner'} oynuyor…` : 'Yapay zekâ düşünüyor…'
       }
       if (m.last && m.last.player === m.me && m.last.kind === 'pass' && !myTurn) text = 'Pas geçtin · ' + text
     }
@@ -490,7 +498,7 @@ export class View {
     h('h2', '', card, title)
     h('p', 'muted', card, l1 ?? '')
     const bars = h('div', 'bars', card)
-    for (const [team, lbl] of [[0, 'Biz'], [1, 'Yapay zekâ']] as const) {
+    for (const [team, lbl] of [[0, m.players === 2 ? 'Sen' : 'Biz'], [1, 'Yapay zekâ']] as const) {
       const row = h('div', `row t${team}`, bars)
       h('span', 'lbl', row, lbl)
       const bar = h('div', 'bar', row)

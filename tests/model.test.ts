@@ -73,6 +73,57 @@ describe('model', () => {
   })
 })
 
+describe('2 kişilik mod (R-20..R-28)', () => {
+  const duo = (over: Partial<GameStateMsg> = {}) =>
+    state({ num_players: 2, boneyard_size: 14, hand_sizes: [7, 7], players: { 0: 'A' }, missing_numbers: [[], []], ...over })
+  it('M-8 durumdan oyuncu sayısı ve bazar alınır; hamleden sonra sıra 2 kişide döner', () => {
+    let m: Model = reduce(initialModel(), duo())
+    expect(m.players).toBe(2)
+    expect(m.boneyard).toBe(14)
+    m = playLocal(m, { tile: [1, 1], to_left: false, is_pass: false })
+    expect(m.current).toBe(1)
+    m = reduce(m, { type: 'agent_move', player: 1, move: { tile: [1, 4], to_left: false, is_pass: false }, board: [[1, 1], [1, 4]] })
+    expect(m.current).toBe(0)
+  })
+  it('M-9 çekiş: el sayısı artar, bazar güncellenir, art arda çekişler tek bildirimde toplanır', () => {
+    let m: Model = reduce(initialModel(), duo({ is_your_turn: false, current_player: 1, legal_moves: [] }))
+    m = reduce(m, { type: 'drew', player: 1, count: 2, boneyard_size: 12 })
+    m = reduce(m, { type: 'drew', player: 1, count: 2, boneyard_size: 10 })
+    expect(m.handSizes[1]).toBe(11)
+    expect(m.boneyard).toBe(10)
+    expect(m.notice).toBe('Yapay zekâ bazardan 4 taş çekti')
+    m = reduce(m, { type: 'agent_move', player: 1, move: { tile: [1, 4], to_left: false, is_pass: false }, board: [[1, 4]] })
+    m = reduce(m, { type: 'drew', player: 0, count: 2, boneyard_size: 8 })
+    expect(m.notice).toBe('Bazardan 2 taş çektin')
+  })
+  it('M-10 4 kişilik varsayılan değişmedi: num_players yoksa 4, sıra 4 kişide döner', () => {
+    let m: Model = reduce(initialModel(), state())
+    expect(m.players).toBe(4)
+    m = playLocal(m, { tile: [1, 1], to_left: false, is_pass: false })
+    expect(m.current).toBe(1)
+    m = reduce(m, { type: 'agent_move', player: 3, move: { tile: [1, 4], to_left: false, is_pass: false }, board: [[1, 1], [1, 4]] })
+    expect(m.current).toBe(0)
+  })
+  it('G-4 2 kişilikte çekişle büyüyen el (19 taşa kadar) ekrana sığar, 7 taşta yerleşim değişmez', () => {
+    for (const [w, h] of [[360, 640], [390, 844], [844, 390], [1280, 720]]) {
+      const g = computeGeometry(w, h)
+      for (const n of [8, 12, 19]) {
+        const s = handSlots(g, n)
+        expect(s[0].x - g.uHand / 2).toBeGreaterThanOrEqual(0)
+        expect(s[n - 1].x + g.uHand / 2).toBeLessThanOrEqual(w)
+        expect(s[1].x - s[0].x).toBeGreaterThan(g.uHand * 0.25)
+      }
+      const s7 = handSlots(g, 7)
+      expect(s7[1].x - s7[0].x).toBeCloseTo(g.uHand + g.handGap)
+    }
+  })
+  it('G-3 2 kişilikte rakip karşı koltukta', () => {
+    expect(relSeat(1, 0, 2)).toBe(2)
+    expect(relSeat(0, 0, 2)).toBe(0)
+    expect(relSeat(3, 0)).toBe(3)
+  })
+})
+
 describe('geometry', () => {
   it('G-1 el 7 taşla ekrana sığar, koltuklar göreli', () => {
     for (const [w, h] of [[360, 640], [390, 844], [844, 390], [1280, 720], [1920, 1080]]) {
